@@ -1,118 +1,121 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React, {useEffect, useState} from 'react';
+import {View, Text, TextInput, Button, Alert} from 'react-native';
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import Tts from 'react-native-tts';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+import {Database} from './Sqlite';
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+const db = new Database();
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+export default function App() {
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const [id, setId] = useState('');
+  const [productId, setProductId] = useState('');
+  const [searchResult, setSearchResult] = useState<string | null>(null);
+
+  const handleCreateProduct = () => {
+    const product = {
+      id,
+      name: name,
+      price: Number(parseFloat(price).toFixed(2)),
+    };
+
+    if (isNaN(product.price)) {
+      return Alert.alert('Invalid price! Please enter a valid number.');
+    }
+
+    try {
+      db.insertProduct(product);
+    } catch {
+      return Alert.alert('Erro ao criar produto!');
+    }
+
+    setName('');
+    setPrice('');
+    setId('');
+  };
+
+  const handleSearchById = () => {
+    try {
+      db.findProductById(productId, product => {
+        if (product) {
+          setSearchResult(`Name: ${product.name}, Price: ${product.price}`);
+
+          const splitedPrice = String(product.price).split('.');
+          const fullPrice = splitedPrice[0];
+          const cents = splitedPrice[1];
+          const text = `${product.name} ${fullPrice} reais e ${cents} centavos`;
+
+          Tts.stop();
+          // pt-BR-SMTf00
+          // pt-BR-default
+          Tts.setDefaultVoice('pt-BR-default');
+          Tts.speak(text);
+        } else {
+          setSearchResult('Product not found');
+          Alert.alert('Produto não encontrado!');
+        }
+      });
+    } catch {
+      Alert.alert('Erro ao buscar produto!');
+    }
+  };
+
+  useEffect(() => {
+    db.initDatabase();
+  }, []);
+
   return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
+    <View style={{flex: 1, flexDirection: 'row', padding: 60}}>
+      <View
+        style={{
+          flex: 1,
+          padding: 20,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <Text>Create Product</Text>
+        <TextInput
+          placeholder="Name"
+          value={name}
+          onChangeText={text => setName(text)}
+        />
+        <TextInput
+          keyboardType="numbers-and-punctuation"
+          placeholder="Price"
+          value={price}
+          onChangeText={text => setPrice(text)}
+        />
+        <TextInput
+          onSubmitEditing={handleCreateProduct}
+          enterKeyHint="done"
+          keyboardType="number-pad"
+          placeholder="Product Id"
+          value={id}
+          onChangeText={text => setId(text)}
+        />
+        <Button title="Create" onPress={handleCreateProduct} />
+      </View>
+
+      <View
+        style={{
+          flex: 1,
+          padding: 20,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <Text>Search Product by ID</Text>
+        <TextInput
+          onSubmitEditing={handleSearchById}
+          enterKeyHint="done"
+          placeholder="Product ID"
+          value={productId}
+          onChangeText={text => setProductId(text)}
+        />
+        <Button title="Search" onPress={handleSearchById} />
+        <Text>{searchResult}</Text>
+      </View>
     </View>
   );
 }
-
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
-  return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
-
-export default App;
